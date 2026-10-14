@@ -1,0 +1,42 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: sqli_lab_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: labuser
+      POSTGRES_PASSWORD: labpassword123
+      POSTGRES_DB: labdb
+    volumes:
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - labnet
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U labuser -d labdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: ./app
+    container_name: sqli_lab_app
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - DB_HOST=db
+      - DB_NAME=labdb
+      - DB_USER=labuser
+      - DB_PASSWORD=labpassword123
+      - DB_PORT=5432
+    volumes:
+      - ./app:/app
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - labnet
+
+networks:
+  labnet:
+    driver: bridge

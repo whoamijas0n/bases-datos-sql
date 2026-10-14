@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laboratorio de Seguridad en Bases de Datos II - SQL Injection Lab</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=2">
+    
+    <style>
+        /* Estilos prioritarios para el selector interactivo instantáneo */
+        .mode-cards-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.85rem;
+            margin-top: 0.5rem;
+        }
+
+        @media (max-width: 650px) {
+            .mode-cards-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .mode-card {
+            cursor: pointer;
+            border-radius: 12px;
+            padding: 1.1rem;
+            transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 2px solid rgba(255, 255, 255, 0.12);
+            background: rgba(15, 23, 42, 0.65);
+            user-select: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+            position: relative;
+        }
+
+        .mode-card.inactive-card {
+            opacity: 0.65;
+            border-color: rgba(255, 255, 255, 0.08);
+            transform: scale(0.99);
+        }
+
+        .mode-card:hover {
+            opacity: 1;
+            transform: translateY(-2px);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Estado Activo Inmediato: Modo Vulnerable */
+        .mode-card.active-vuln {
+            opacity: 1 !important;
+            border-color: #f43f5e !important;
+            background: rgba(244, 63, 94, 0.12) !important;
+            box-shadow: 0 0 20px rgba(244, 63, 94, 0.35) !important;
+            transform: scale(1.01);
+        }
+
+        /* Estado Activo Inmediato: Modo Seguro */
+        .mode-card.active-sec {
+            opacity: 1 !important;
+            border-color: #10b981 !important;
+            background: rgba(16, 185, 129, 0.12) !important;
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.35) !important;
+            transform: scale(1.01);
+        }
+
+        .mode-card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .radio-indicator {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.35);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.3);
+            transition: all 0.2s ease;
+        }
+
+        .active-vuln .radio-indicator {
+            border-color: #f43f5e;
+            box-shadow: 0 0 8px rgba(244, 63, 94, 0.5);
+        }
+
+        .active-sec .radio-indicator {
+            border-color: #10b981;
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+        }
+
+        .radio-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        #dotVulnerable {
+            background: #f43f5e;
+            box-shadow: 0 0 6px #f43f5e;
+        }
+
+        #dotSecure {
+            background: #10b981;
+            box-shadow: 0 0 6px #10b981;
+        }
+
+        .mode-tag-pill {
+            font-size: 0.7rem;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            padding: 0.2rem 0.55rem;
+            border-radius: 9999px;
+            letter-spacing: 0.05em;
+        }
+
+        .tag-danger {
+            background: rgba(244, 63, 94, 0.2);
+            color: #fb7185;
+            border: 1px solid rgba(244, 63, 94, 0.4);
+        }
+
+        .tag-secure {
+            background: rgba(16, 185, 129, 0.2);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.4);
+        }
+
+        .mode-card-body h4 {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 0.25rem;
+        }
+
+        .mode-card-body p {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            line-height: 1.35;
+            margin-bottom: 0.45rem;
+        }
+
+        .code-pill {
+            display: inline-block;
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 0.2rem 0.5rem;
+            border-radius: 6px;
+            color: #93c5fd;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .mode-explanation {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 0.85rem 1rem;
+            border-radius: 10px;
+            font-size: 0.82rem;
+            line-height: 1.45;
+            margin-top: 0.75rem;
+            transition: all 0.2s ease;
+        }
+
+        .exp-vulnerable {
+            background: rgba(244, 63, 94, 0.1);
+            border: 1px solid rgba(244, 63, 94, 0.35);
+            color: #fecdd3;
+        }
+
+        .exp-vulnerable strong {
+            color: #fb7185;
+        }
+
+        .exp-secure {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.35);
+            color: #a7f3d0;
+        }
+
+        .exp-secure strong {
+            color: #34d399;
+        }
+
+        .mode-header-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .mode-tip {
+            font-size: 0.75rem;
+            color: #818cf8;
+            font-family: var(--font-mono);
+        }
+    </style>
+</head>
+<body>
+    <div class="background-glow glow-1"></div>
+    <div class="background-glow glow-2"></div>
+
+    <div class="container">
+        <header class="main-header">
+            <div class="badge-lab">ENTORNO EDUCATIVO AISLADO</div>
+            <h1>Laboratorio de Análisis de Consultas & SQL Injection</h1>
+            <p class="subtitle">Asignatura: <strong>Bases de Datos II</strong> &bull; Análisis de Inyecciones En Banda, Inferenciales y Mitigación</p>
+        </header>
+
+        <main class="grid-layout">
+            <!-- Columna Izquierda: Formulario de Login -->
+            <section class="card form-card">
+                <div class="card-header">
+                    <div class="icon-circle">🔐</div>
+                    <div>
+                        <h2>Portal de Autenticación</h2>
+                        <span class="card-desc">Haz clic en una opción para alternar la arquitectura</span>
+                    </div>
+                </div>
+
+                <form method="POST" action="/" class="auth-form" id="loginForm">
+                    <!-- Selector Interactivo de Modo -->
+                    <div class="form-group mode-selector-group">
+                        <div class="mode-header-label">
+                            <label>Arquitectura de Consulta en Base de Datos:</label>
+                            <span class="mode-tip">Clic para alternar al instante</span>
+                        </div>
+
+                        <div class="mode-cards-grid">
+                            <!-- Tarjeta 1: Modo Vulnerable -->
+                            <div 
+                                class="mode-card mode-vulnerable {% if query_mode == 'vulnerable' %}active-vuln{% else %}inactive-card{% endif %}" 
+                                id="cardVulnerable" 
+                                onclick="selectMode('vulnerable')"
+                            >
+                                <div class="mode-card-top">
+                                    <div class="radio-indicator">
+                                        <span class="radio-dot" id="dotVulnerable" style="display: {% if query_mode == 'vulnerable' %}block{% else %}none{% endif %};"></span>
+                                    </div>
+                                    <span class="mode-tag-pill tag-danger">VULNERABLE</span>
+                                </div>
+                                <div class="mode-card-body">
+                                    <h4>Concatenación Directa</h4>
+                                    <p>Interpolación de cadenas sin validar.</p>
+                                    <span class="code-pill">f"WHERE user = '{username}'"</span>
+                                </div>
+                            </div>
+
+                            <!-- Tarjeta 2: Modo Seguro -->
+                            <div 
+                                class="mode-card mode-secure {% if query_mode == 'secure' %}active-sec{% else %}inactive-card{% endif %}" 
+                                id="cardSecure" 
+                                onclick="selectMode('secure')"
+                            >
+                                <div class="mode-card-top">
+                                    <div class="radio-indicator">
+                                        <span class="radio-dot" id="dotSecure" style="display: {% if query_mode == 'secure' %}block{% else %}none{% endif %};"></span>
+                                    </div>
+                                    <span class="mode-tag-pill tag-secure">PROTEGIDO</span>
+                                </div>
+                                <div class="mode-card-body">
+                                    <h4>Consulta Parametrizada</h4>
+                                    <p>Prepared Statements precompilados.</p>
+                                    <span class="code-pill">WHERE user = %s</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Inputs de formulario reales que se envían al backend -->
+                        <input type="radio" name="mode" value="vulnerable" id="radioVulnerable" {% if query_mode == 'vulnerable' %}checked{% endif %} style="display:none;">
+                        <input type="radio" name="mode" value="secure" id="radioSecure" {% if query_mode == 'secure' %}checked{% endif %} style="display:none;">
+
+                        <!-- Notificación dinámica con explicación inmediata -->
+                        <div class="mode-explanation" id="modeExplanation">
+                            <!-- Se actualiza con JavaScript al instante -->
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="username">Nombre de Usuario (Campo de Prueba)</label>
+                        <input 
+                            type="text" 
+                            id="username" 
+                            name="username" 
+                            placeholder="Ej. estudiante1, ' OR 1=1 --" 
+                            value="{{ submitted_username }}"
+                            required
+                            autocomplete="off"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="password">Contraseña</label>
+                        <input 
+                            type="password" 
+                            id="password" 
+                            name="password" 
+                            placeholder="Introduce la contraseña..." 
+                            required
+                        >
+                    </div>
+
+                    <button type="submit" class="btn-submit" id="submitBtn">
+                        <span>Ejecutar Consulta en DB</span>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M5 12h14M12 5l7 7-7 7"/>
+                        </svg>
+                    </button>
+                </form>
+
+                <div class="credentials-helper">
+                    <span class="helper-title">Credenciales válidas precargadas en DB:</span>
+                    <code>admin / AdminPass2026#</code>
+                    <code>prof_garcia / ProfesorSecure99!</code>
+                    <code>estudiante1 / Estudiante123</code>
+                </div>
+            </section>
+
+            <!-- Columna Derecha: Inspector de Consulta y Resultados -->
+            <section class="card inspector-card">
+                <div class="card-header">
+                    <div class="icon-circle blue">🔍</div>
+                    <div>
+                        <h2>Inspector de Base de Datos</h2>
+                        <span class="card-desc">Monitoreo en tiempo real de consultas y latencia</span>
+                    </div>
+                </div>
+
+                <!-- Métricas de Ejecución -->
+                <div class="metrics-row">
+                    <div class="metric-item">
+                        <span class="metric-label">Estado</span>
+                        {% if logged_in %}
+                            <span class="status-pill success">Autenticado</span>
+                        {% elif db_error %}
+                            <span class="status-pill error">Excepción SQL</span>
+                        {% elif status_message %}
+                            <span class="status-pill warning">Rechazado</span>
+                        {% else %}
+                            <span class="status-pill neutral">En Espera</span>
+                        {% endif %}
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Tiempo de Respuesta</span>
+                        <span class="metric-value">
+                            {% if execution_time_ms is not none %}
+                                <span class="time-badge {% if execution_time_ms > 2000 %}time-high{% endif %}">{{ execution_time_ms }} ms</span>
+                            {% else %}
+                                <span class="time-badge">0.00 ms</span>
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Modo Seleccionado</span>
+                        <span id="inspectorModeBadge" class="mode-tag {% if query_mode == 'vulnerable' %}tag-danger{% else %}tag-secure{% endif %}">
+                            {{ query_mode | upper }}
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Consulta SQL Renderizada -->
+                <div class="inspector-section">
+                    <div class="section-title-bar">
+                        <h3>Sentencia SQL Enviada al Motor</h3>
+                        <span class="dialect-badge" id="queryStatusBadge">{% if raw_query %}Ejecutada en PostgreSQL 16{% else %}Vista Previa en Vivo{% endif %}</span>
+                    </div>
+                    <div class="code-wrapper">
+                        <pre><code id="sqlCodePreview">{% if raw_query %}{{ raw_query }}{% else %}SELECT id, username, role, email FROM users WHERE username = '...' AND password = '...'</code>{% endif %}</pre>
+                    </div>
+                </div>
+
+                <!-- Detalle de Excepción SQL (In-band Error Based) -->
+                {% if db_error %}
+                <div class="inspector-section error-section">
+                    <div class="section-title-bar">
+                        <h3 class="text-error">Excepción Capturada de PostgreSQL</h3>
+                        {% if db_error.code %}<span class="err-code">SQLSTATE: {{ db_error.code }}</span>{% endif %}
+                    </div>
+                    <div class="error-box">
+                        <pre><code>{{ db_error.message }}</code></pre>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Resultado Obtenido (In-band Union Based / Autenticación) -->
+                {% if user_data %}
+                <div class="inspector-section result-section">
+                    <h3>Registros Retornados por el Motor ({{ user_data | length }} fila{% if user_data | length > 1 %}s{% endif %})</h3>
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Usuario</th>
+                                    <th>Rol</th>
+                                    <th>Email</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in user_data %}
+                                <tr>
+                                    <td>{{ row.get('id', '-') }}</td>
+                                    <td><strong>{{ row.get('username', '-') }}</strong></td>
+                                    <td><span class="role-badge role-{{ row.get('role', 'estudiante') }}">{{ row.get('role', '-') }}</span></td>
+                                    <td>{{ row.get('email', '-') }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if status_message and not user_data and not db_error %}
+                <div class="status-box">
+                    <p>{{ status_message }}</p>
+                </div>
+                {% endif %}
+            </section>
+        </main>
+
+        <footer class="main-footer">
+            <p>Laboratorio Académico para Pruebas Controladas de Inyección SQL &bull; Base de Datos II</p>
+        </footer>
+    </div>
+
+    <!-- Script de Selección Instantánea al Clic -->
+    <script>
+        let hasExecutedQuery = {% if raw_query %}true{% else %}false{% endif %};
+
+        // Función invocada de inmediato con el click en cada tarjeta
+        function selectMode(mode) {
+            const isVuln = (mode === 'vulnerable');
+            
+            // 1. Marcar el radio input real para el formulario POST
+            document.getElementById('radioVulnerable').checked = isVuln;
+            document.getElementById('radioSecure').checked = !isVuln;
+            
+            // 2. Elementos DOM visuales
+            const cardV = document.getElementById('cardVulnerable');
+            const cardS = document.getElementById('cardSecure');
+            const dotV = document.getElementById('dotVulnerable');
+            const dotS = document.getElementById('dotSecure');
+            const modeExplanation = document.getElementById('modeExplanation');
+            const inspectorBadge = document.getElementById('inspectorModeBadge');
+
+            if (isVuln) {
+                // Seleccionar tarjeta vulnerable
+                cardV.classList.add('active-vuln');
+                cardV.classList.remove('inactive-card');
+                cardS.classList.remove('active-sec');
+                cardS.classList.add('inactive-card');
+
+                dotV.style.display = 'block';
+                dotS.style.display = 'none';
+
+                modeExplanation.className = 'mode-explanation exp-vulnerable';
+                modeExplanation.innerHTML = `
+                    <div style="font-size:1.2rem;">⚠️</div>
+                    <div>
+                        <strong>Modo Seleccionado: Concatenación Directa (Vulnerable)</strong><br>
+                        <span>El texto del campo se concatenará directamente como código SQL. Cualquier carácter como <code>'</code> o <code>--</code> modificará la consulta en PostgreSQL.</span>
+                    </div>
+                `;
+
+                if (inspectorBadge) {
+                    inspectorBadge.className = 'mode-tag tag-danger';
+                    inspectorBadge.textContent = 'VULNERABLE';
+                }
+            } else {
+                // Seleccionar tarjeta segura
+                cardS.classList.add('active-sec');
+                cardS.classList.remove('inactive-card');
+                cardV.classList.remove('active-vuln');
+                cardV.classList.add('inactive-card');
+
+                dotS.style.display = 'block';
+                dotV.style.display = 'none';
+
+                modeExplanation.className = 'mode-explanation exp-secure';
+                modeExplanation.innerHTML = `
+                    <div style="font-size:1.2rem;">🛡️</div>
+                    <div>
+                        <strong>Modo Seleccionado: Consulta Parametrizada (Segura)</strong><br>
+                        <span>La consulta se precompila con marcadores <code>%s</code>. La base de datos tratará la entrada estrictamente como datos literales.</span>
+                    </div>
+                `;
+
+                if (inspectorBadge) {
+                    inspectorBadge.className = 'mode-tag tag-secure';
+                    inspectorBadge.textContent = 'SEGURO';
+                }
+            }
+
+            // Actualizar vista previa de la sentencia SQL
+            updateQueryPreview(isVuln);
+        }
+
+        function updateQueryPreview(isVuln) {
+            const usernameInput = document.getElementById('username');
+            const userVal = usernameInput ? (usernameInput.value || '...') : '...';
+            const sqlPreview = document.getElementById('sqlCodePreview');
+            const statusBadge = document.getElementById('queryStatusBadge');
+
+            if (!sqlPreview) return;
+
+            if (statusBadge) {
+                statusBadge.textContent = 'Vista Previa en Vivo';
+            }
+
+            if (isVuln) {
+                sqlPreview.textContent = `SELECT id, username, role, email FROM users WHERE username = '${userVal}' AND password = '...'`;
+            } else {
+                sqlPreview.textContent = `SELECT id, username, role, email FROM users WHERE username = %s AND password = %s\n[Parámetros vinculados: username='${userVal}', password='***']`;
+            }
+        }
+
+        // Listener en el input de usuario para actualizar la vista previa en vivo
+        document.addEventListener('DOMContentLoaded', function() {
+            const usernameInput = document.getElementById('username');
+            const radioVulnerable = document.getElementById('radioVulnerable');
+
+            // Inicializar el estado de la explicación
+            selectMode(radioVulnerable.checked ? 'vulnerable' : 'secure');
+
+            if (usernameInput) {
+                usernameInput.addEventListener('input', function() {
+                    const isVuln = document.getElementById('radioVulnerable').checked;
+                    updateQueryPreview(isVuln);
+                });
+            }
+        });
+    </script>
+</body>
+</html>
