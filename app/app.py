@@ -101,10 +101,13 @@ def login():
         "submitted_username": "",
     }
 
-    if request.method == "POST":
-        username = request.form.get("username", "")
-        password = request.form.get("password", "")
-        query_mode = request.form.get("mode", "vulnerable")
+    # Permitir tanto peticiones POST (formulario) como GET (parámetros en la URL / Query String)
+    is_submission = (request.method == "POST") or ("username" in request.args)
+
+    if is_submission:
+        username = request.values.get("username", "")
+        password = request.values.get("password", "")
+        query_mode = request.values.get("mode", "vulnerable")
 
         context["query_mode"] = query_mode
         context["submitted_username"] = username
@@ -144,6 +147,19 @@ def login():
             cursor.close()
             conn.close()
 
+            # Imprimir en consola para visualización en tiempo real en `docker compose logs -f app`
+            origin_type = "URL (GET)" if request.method == "GET" else "Formulario (POST)"
+            print(f"\n[HTTP {request.method}] Inyección/Consulta recibida desde {origin_type}:", flush=True)
+            print(f"  Modo:      {query_mode}", flush=True)
+            print(f"  Usuario:   {username}", flush=True)
+            print(f"  SQL:       {context['raw_query']}", flush=True)
+            if records:
+                print(f"  Resultado: AUTENTICADO ({len(records)} fila(s) obtenida(s))", flush=True)
+                for r in records:
+                    print(f"    -> ID:{r['id']} | Usuario:{r['username']} | Rol:{r['role']} | Email:{r['email']}", flush=True)
+            else:
+                print(f"  Resultado: RECHAZADO (0 filas devueltas)", flush=True)
+
         except psycopg2.Error as err:
             execution_time = (time.perf_counter() - start_time) * 1000
             context["execution_time_ms"] = round(execution_time, 2)
@@ -152,10 +168,14 @@ def login():
                 "code": err.pgcode
             }
             context["status_message"] = "Excepción en el motor de base de datos."
+            print(f"\n[HTTP {request.method}] Excepción SQL en Base de Datos:", flush=True)
+            print(f"  SQL:       {context.get('raw_query')}", flush=True)
+            print(f"  Error:     {err.pgerror or str(err)}", flush=True)
             if conn:
                 conn.close()
         except Exception as ex:
             context["status_message"] = f"Error del servidor: {str(ex)}"
+            print(f"\n[HTTP {request.method}] Error general del servidor: {ex}", flush=True)
 
     return render_template("login.html", **context)
 
